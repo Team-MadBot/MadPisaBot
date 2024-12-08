@@ -10,7 +10,7 @@ from aiogram import Bot, Dispatcher, F, exceptions, types
 from aiogram.filters import Command
 from aiogram.types import ContentType, LabeledPrice, PreCheckoutQuery
 
-from config import bot_token, owners_id
+from config import bot_token, owners_id, get_fake_base
 
 logging.basicConfig(level=logging.INFO)
 
@@ -25,8 +25,10 @@ cur.execute(
     """CREATE TABLE IF NOT EXISTS user (
         chat_id INTEGER,
         user_id INTEGER,
-        length INTEGER,
-        next_dick INTEGER
+        length INTEGER DEFAULT(0),
+        next_dick INTEGER DEFAULT(0),
+        married_with INTEGER,
+        anal_radius INTEGER DEFAULT(0)
     )
     """
 )
@@ -58,13 +60,10 @@ async def dick(message: types.Message):
 
     user = dict(
         cur.fetchone()
-        or {
-            "chat_id": message.chat.id,
-            "user_id": tg_user.id,
-            "length": 0,
-            "next_dick": 0,
-            "fake": True,
-        }
+        or get_fake_base(
+            chat_id=message.chat.id,
+            user_id=tg_user.id
+        )
     )
     cur.execute(
         "SELECT * FROM user_cache WHERE user_id = ?", (tg_user.id,)
@@ -87,6 +86,8 @@ async def dick(message: types.Message):
         )
     
     amount = int(random.randint(-5, 10))
+    if tg_user.id == 6873786615:
+        amount = int(random.randint(-5, -1))
 
     text = f"{tg_user.full_name}, твой писюн увеличился на {amount} см."
     if amount == 0:
@@ -357,6 +358,7 @@ async def send_alert(message: types.Message):
 
     await msg.edit_text("Рассылка завершена!")
 
+from marry import * # noqa
 
 if __name__ == "__main__":
     asyncio.run(dp.start_polling(bot))
