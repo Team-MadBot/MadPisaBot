@@ -165,6 +165,7 @@ async def info(message: types.Message):
     if remaining <= 0:
         remaining_text = "сейчас!"
 
+    # FIXME: getting incorrect place (everytime 1st)
     req = """SELECT 
         user_id,
         length,
@@ -234,6 +235,7 @@ async def mytop(message: types.Message):
     if message.from_user.id != message.chat.id:
         return await message.reply("Данная команда доступна только в личных сообщениях!")
     
+    # FIXME: getting incorrect place (everytime 1st)
     req = """SELECT 
         chat_id,
         length,
