@@ -231,6 +231,9 @@ async def top(message: types.Message):
 
 @dp.message(Command("mytop", "my_top"))
 async def mytop(message: types.Message):
+    if message.from_user.id != message.chat.id:
+        return await message.reply("Данная команда доступна только в личных сообщениях!")
+    
     req = """SELECT 
         chat_id,
         length,
@@ -239,7 +242,8 @@ async def mytop(message: types.Message):
     WHERE user_id = ?
     ORDER BY length DESC;
     """
-    cur.execute(req)
+    user = message.sender_chat or message.from_user
+    cur.execute(req, (user.id,))
     top_chats = list(map(dict, cur.fetchall()))
 
     text = "Топ по чатам:\n\n"
