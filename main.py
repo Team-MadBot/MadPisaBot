@@ -10,7 +10,7 @@ from aiogram import Bot, Dispatcher, F, exceptions, types
 from aiogram.filters import Command
 from aiogram.types import ContentType, LabeledPrice, PreCheckoutQuery
 
-from config import bot_token, owners_id, get_fake_base
+from config import bot_token, get_fake_base, owners_id
 
 logging.basicConfig(level=logging.INFO)
 
@@ -39,13 +39,42 @@ cur.execute(
     )
     """
 )
+cur.execute(
+    """CREATE TABLE IF NOT EXISTS chat_cache (
+        chat_id INTEGER UNIQUE NOT NULL,
+        chat_title TEXT
+    )"""
+)
 
 
-def get_top_users(chat_id: int):
-    cur.execute(f"""SELECT * FROM user WHERE chat_id = {chat_id}""")
-    return sorted(
-        [dict(row) for row in cur.fetchall()], key=lambda u: u["length"], reverse=True
-    )
+def update_user_cache(user_id: int, user_name: str):
+    cur.execute("SELECT * FROM user_cache WHERE user_id = ?", (user_id,))
+    user_cache = cur.fetchone()
+    if user_cache is None:
+        cur.execute(
+            "INSERT INTO user_cache (user_id, user_name) VALUES (?, ?)",
+            (user_id, user_name),
+        )
+    else:
+        cur.execute(
+            "UPDATE user_cache SET user_name = ? WHERE user_id = ?",
+            (user_name, user_id),
+        )
+
+
+def update_chat_cache(chat_id: int, chat_title: str):
+    cur.execute("SELECT * FROM chat_cache WHERE chat_id = ?", (chat_id,))
+    chat_cache = cur.fetchone()
+    if chat_cache is None:
+        cur.execute(
+            "INSERT INTO chat_cache (chat_id, chat_title) VALUES (?, ?)",
+            (chat_id, chat_title),
+        )
+    else:
+        cur.execute(
+            "UPDATE chat_cache SET chat_title = ? WHERE chat_id = ?",
+            (chat_title, chat_id),
+        )
 
 
 @dp.message(Command("dick"))
@@ -59,32 +88,16 @@ async def dick(message: types.Message):
     )
 
     user = dict(
-        cur.fetchone()
-        or get_fake_base(
-            chat_id=message.chat.id,
-            user_id=tg_user.id
-        )
+        cur.fetchone() or get_fake_base(chat_id=message.chat.id, user_id=tg_user.id)
     )
-    cur.execute(
-        "SELECT * FROM user_cache WHERE user_id = ?", (tg_user.id,)
-    )
-    user_cache = cur.fetchone()
-    if user_cache is None:
-        cur.execute(
-            "INSERT INTO user_cache (user_id, user_name) VALUES (?, ?)",
-            (tg_user.id, tg_user.full_name)
-        )
-    else:
-        cur.execute(
-            "UPDATE user_cache SET user_name = ? WHERE user_id = ?",
-            (tg_user.full_name, tg_user.id)
-        )
+    update_chat_cache(message.chat.id, message.chat.title)
+    update_user_cache(tg_user.id, tg_user.full_name)
     if user["next_dick"] > time.time():
         remaining = user["next_dick"] - time.time()
         return await message.reply(
             f"Ты уже играл!\nОжидай ещё {round(remaining // 3600)} часов, {round(remaining % 3600 // 60)} минут и {round(remaining % 3600 % 60)} секунд."
         )
-    
+
     amount = int(random.randint(-5, 10))
     if tg_user.id == 6873786615:
         amount = int(random.randint(-5, -1))
@@ -106,14 +119,19 @@ async def dick(message: types.Message):
             WHERE user_id = {tg_user.id} AND chat_id = {message.chat.id}"""
         )
 
-    chat_users = get_top_users(chat_id=message.chat.id)
-    for count, u in enumerate(chat_users, start=1):
-        if u["user_id"] == tg_user.id:
-            break
+    req = """SELECT 
+        user_id,
+        length,
+        RANK() OVER (PARTITION BY chat_id ORDER BY length DESC) AS position
+    FROM user
+    WHERE chat_id = ? AND user_id = ?
+    ORDER BY length DESC;
+    """
+    user_pos = cur.execute(req, (message.chat.id, tg_user.id)).fetchone()["position"]
 
     await message.reply(
         f"{text}\nТеперь размер составляет {(user['length'] + amount):,} см.\n"
-        f"Теперь ты занимаешь {count} место в топе.\nСледующая попытка через 12 часов."
+        f"Теперь ты занимаешь {user_pos} место в топе.\nСледующая попытка через 12 часов."
     )
 
 
@@ -147,10 +165,15 @@ async def info(message: types.Message):
     if remaining <= 0:
         remaining_text = "сейчас!"
 
-    chat_users = get_top_users(message.chat.id)
-    for count, u in enumerate(chat_users, start=1):
-        if u["user_id"] == user.id:
-            break
+    req = """SELECT 
+        user_id,
+        length,
+        RANK() OVER (PARTITION BY chat_id ORDER BY length DESC) AS position
+    FROM user
+    WHERE chat_id = ? AND user_id = ?
+    ORDER BY length DESC;
+    """
+    user_pos = cur.execute(req, (message.chat.id, user.id)).fetchone()["position"]
 
     thing_name = (
         "твой писюн эквивалентен"
@@ -159,25 +182,13 @@ async def info(message: types.Message):
     )
     text = (
         f"{user.full_name}, {thing_name} {abs(db_user['length']):,} см.\n"
-        f"Ты занимаешь {count} место в топе.\n"
+        f"Ты занимаешь {user_pos} место в топе.\n"
         f"Следующий /dick: {remaining_text}"
     )
 
     await message.reply(text)
-    cur.execute(
-        "SELECT * FROM user_cache WHERE user_id = ?", (user.id,)
-    )
-    user_cache = cur.fetchone()
-    if user_cache is None:
-        cur.execute(
-            "INSERT INTO user_cache (user_id, user_name) VALUES (?, ?)",
-            (user.id, user.full_name)
-        )
-    else:
-        cur.execute(
-            "UPDATE user_cache SET user_name = ? WHERE user_id = ?",
-            (user.full_name, user.id)
-        )
+    update_chat_cache(message.chat.id, message.chat.title)
+    update_user_cache(user.id, user.full_name)
 
 
 @dp.message(Command("top", "top_dick"))
@@ -185,15 +196,20 @@ async def top(message: types.Message):
     if message.chat.id == message.from_user.id:
         return await message.reply("Данная команда доступна только в группах с ботом.")
 
-    users = get_top_users(message.chat.id)
+    req = """SELECT 
+        user_id,
+        length,
+        RANK() OVER (PARTITION BY chat_id ORDER BY length DESC) AS position
+    FROM user
+    WHERE chat_id = ?
+    ORDER BY length DESC;
+    """
+    users = list(map(dict, cur.execute(req, (message.chat.id,)).fetchall()))
 
     text = "Топ пипис:\n\n"
-    count = 0
-    for count, user in enumerate(users, start=1):
+    for user in users:
         user_name = None
-        cur.execute(
-            "SELECT * FROM user_cache WHERE user_id = ?", (user["user_id"],)
-        )
+        cur.execute("SELECT * FROM user_cache WHERE user_id = ?", (user["user_id"],))
         user_cache = cur.fetchone()
         if user_cache is not None:
             user_name = user_cache["user_name"]
@@ -202,14 +218,51 @@ async def top(message: types.Message):
                 user_name = (await bot.get_chat(user["user_id"])).full_name
             except exceptions.TelegramBadRequest:
                 traceback.print_exc()
-        text += f"{count}. {user_name or 'Неизвестный'}: {user['length']:,} см.\n"
+        text += f"{user['position']}. {user_name or 'Неизвестный'}: {user['length']:,} см.\n"
         if user_cache is None and user_name is not None:
             cur.execute(
-                "INSERT INTO user_cache (user_id, user_name) VALUES (?, ?)", 
-                (user["user_id"], user_name)
+                "INSERT INTO user_cache (user_id, user_name) VALUES (?, ?)",
+                (user["user_id"], user_name),
             )
 
     await message.reply(text)
+    update_chat_cache(message.chat.id, message.chat.title)
+
+
+@dp.message(Command("mytop", "my_top"))
+async def mytop(message: types.Message):
+    req = """SELECT 
+        chat_id,
+        length,
+        RANK() OVER (PARTITION BY chat_id ORDER BY length DESC) AS position
+    FROM user
+    WHERE user_id = ?
+    ORDER BY length DESC;
+    """
+    cur.execute(req)
+    top_chats = list(map(dict, cur.fetchall()))
+
+    text = "Топ по чатам:\n\n"
+    for chat in top_chats:
+        chat_title = None
+        cur.execute("SELECT * FROM chat_cache WHERE chat_id = ?", (chat["chat_id"],))
+        chat_cache = cur.fetchone()
+        if chat_cache is not None:
+            chat_title = chat_cache["chat_title"]
+        else:
+            try:
+                chat_title = (await bot.get_chat(chat["chat_id"])).title
+            except exceptions.TelegramBadRequest:
+                traceback.print_exc()
+        text += f"{chat['position']} место: {chat_title or 'Неизвестный'} ({chat['length']:,} см).\n"
+        if chat_cache is None and chat_title is not None:
+            cur.execute(
+                "INSERT INTO chat_cache (chat_id, chat_title) VALUES (?, ?)",
+                (chat["chat_id"], chat_title),
+            )
+
+    await message.reply(text)
+    update_chat_cache(message.chat.id, message.chat.title)
 
 
 @dp.message(Command("giveuserlink"))
@@ -358,7 +411,8 @@ async def send_alert(message: types.Message):
 
     await msg.edit_text("Рассылка завершена!")
 
-from marry import * # noqa
+
+from marry import *  # noqa
 
 if __name__ == "__main__":
     asyncio.run(dp.start_polling(bot))
