@@ -46,6 +46,24 @@ def get_top_users(chat_id: int):
     )
 
 
+@dp.message(F.migrate_to_chat_id)
+@dp.message(F.migrate_from_chat_id)
+async def migrate_to_chat_id_handler(message: types.Message):
+    old_id, new_id = message.chat.id, (message.migrate_to_chat_id or message.migrate_from_chat_id)
+    cur.execute(
+        """UPDATE user SET chat_id = ? WHERE chat_id = ?""",
+        (new_id, old_id)
+    )
+    cur.execute(
+        """UPDATE user SET user_id = ? WHERE user_id = ?""",
+        (new_id, old_id)
+    )
+    cur.execute(
+        """UPDATE user_cache SET user_id = ? WHERE user_id = ?""",
+        (new_id, old_id)
+    )
+
+
 @dp.message(Command("dick"))
 async def dick(message: types.Message):
     if message.chat.id == message.from_user.id:
