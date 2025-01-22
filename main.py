@@ -32,8 +32,8 @@ cur.execute(
 cur.execute(
     """CREATE TABLE IF NOT EXISTS chat (
         chat_id INTEGER UNIQUE NOT NULL,
-        thing_name TEXT NOT NULL DEFAULT("ум"),
-        thing_metric TEXT NOT NULL DEFAULT("IQ"),
+        thing_name TEXT NOT NULL DEFAULT('ум'),
+        thing_metric TEXT NOT NULL DEFAULT('IQ'),
         min_value INTEGER NOT NULL DEFAULT(-5),
         max_value INTEGER NOT NULL DEFAULT(10) 
     );"""
@@ -125,7 +125,7 @@ async def try_luck(message: types.Message):
     
     amount = int(random.randint(chat_info["min_value"], chat_info["max_value"]))
 
-    text = f"{tg_user.full_name}, твой {chat_info['thing_name']} увеличился на {amount} {chat_info['thing_value']}."
+    text = f"{tg_user.full_name}, твой {chat_info['thing_name']} увеличился на {amount} {chat_info['thing_metric']}."
     if amount == 0:
         text = f"{tg_user.full_name}, твой {chat_info['thing_name']} не изменился."
     if amount < 0:
@@ -148,7 +148,7 @@ async def try_luck(message: types.Message):
             break
 
     await message.reply(
-        f"{text}\nТеперь размер составляет {(user['value'] + amount):,} {chat_info['thing_value']}.\n"
+        f"{text}\nТеперь размер составляет {(user['value'] + amount):,} {chat_info['thing_metric']}.\n"
         f"Теперь ты занимаешь {count} место в топе.\nСледующая попытка через 12 часов."
     )
     if chat_info.get("fake", False):
@@ -177,7 +177,7 @@ async def info(message: types.Message):
 
     db_user = cur.fetchone()
     chat_info = dict(
-        cur.execute("SELECT * FROM chat WHERE chat_id = ?", (message.chat.id,)) or 
+        cur.execute("SELECT * FROM chat WHERE chat_id = ?", (message.chat.id,)).fetchone() or 
         get_fake_chat_info(message.chat.id, "писюн", "см")
     )
     if db_user is None:
@@ -239,7 +239,7 @@ async def top(message: types.Message):
 
     users = get_top_users(message.chat.id)
     chat_info = dict(
-        cur.execute("SELECT * FROM chat WHERE chat_id = ?", (message.chat.id,)) or 
+        cur.execute("SELECT * FROM chat WHERE chat_id = ?", (message.chat.id,)).fetchone() or 
         get_fake_chat_info(message.chat.id, "писюн", "см")
     )
 
