@@ -148,8 +148,8 @@ async def try_luck(message: types.Message):
             break
 
     await message.reply(
-        f"{text}\nТеперь размер составляет {(user['value'] + amount):,} {chat_info['thing_metric']}.\n"
-        f"Теперь ты занимаешь {count} место в топе.\nСледующая попытка через 12 часов."
+        f"{text}\nТеперь {chat_info['thing_name']} равен {(user['value'] + amount):,} {chat_info['thing_metric']}.\n"
+        f"Ты занимаешь {count} место в топе.\nСледующая попытка через 12 часов."
     )
     if chat_info.get("fake", False):
         cur.execute(
@@ -298,7 +298,7 @@ async def editsize(message: types.Message):
 
     if message.reply_to_message is None and len(args) < 3:
         return await message.reply(
-            "Ответь на сообщение человека, кому надо изменить размер, либо укажите ID следующим аргументом!"
+            "Ответь на сообщение человека, кому надо изменить значение, либо укажите ID следующим аргументом!"
         )
     if len(args) < 3:
         args.append(0)
@@ -330,7 +330,7 @@ async def editsize(message: types.Message):
         )
 
     await message.reply(
-        f"Размер изменён у {'пользователя с ID ' + str(user) if message.reply_to_message is None else (
+        f"Значение изменено у {'пользователя с ID ' + str(user) if message.reply_to_message is None else (
             message.reply_to_message.sender_chat or message.reply_to_message.from_user
         ).full_name}"
     )
