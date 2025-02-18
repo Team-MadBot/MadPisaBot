@@ -294,11 +294,11 @@ async def giveuserlink(message: types.Message):
 async def editsize(message: types.Message):
     args = message.text.split(" ")
     if len(args) < 2:
-        return await message.reply("Введи, на сколько изменить")
+        return await message.reply("Введите, на сколько нужно изменить значение")
 
     if message.reply_to_message is None and len(args) < 3:
         return await message.reply(
-            "Ответь на сообщение человека, кому надо изменить значение, либо укажите ID следующим аргументом!"
+            "Ответьте на сообщение человека, кому надо изменить значение, либо укажите ID следующим аргументом!"
         )
     if len(args) < 3:
         args.append(0)
