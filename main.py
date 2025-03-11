@@ -417,7 +417,7 @@ async def send_alert(message: types.Message):
         except Exception:
             traceback.print_exc()
             print(c_id)
-        await asyncio.sleep(2)
+        await asyncio.sleep(0.034)
 
     await msg.edit_text("Рассылка завершена!")
 
