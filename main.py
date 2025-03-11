@@ -401,7 +401,7 @@ async def refund_stars(message: types.Message):
 
 @dp.message(Command("sendalert"), F.from_user.id.in_(owners_id))
 async def send_alert(message: types.Message):
-    alert = message.md_text.removeprefix("/sendalert ")
+    alert = message.md_text.removeprefix("/sendalert").removeprefix(" ")
     if alert == "":
         return await message.reply("А чё рассылать-то?")
 
