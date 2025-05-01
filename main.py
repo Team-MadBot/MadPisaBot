@@ -6,6 +6,8 @@ import sqlite3
 import time
 import traceback
 
+from typing import Optional
+
 from aiogram import Bot, Dispatcher, F, exceptions, types
 from aiogram.filters import Command
 from aiogram.types import ContentType, LabeledPrice, PreCheckoutQuery
@@ -39,11 +41,9 @@ cur.execute(
 )
 
 
-def get_top_users(chat_id: int):
-    cur.execute(f"""SELECT * FROM user WHERE chat_id = {chat_id}""")
-    return sorted(
-        [dict(row) for row in cur.fetchall()], key=lambda u: u["length"], reverse=True
-    )
+def get_top_users(chat_id: int, limit: Optional[int] = None):
+    cur.execute(f"""SELECT * FROM user WHERE chat_id = {chat_id} ORDER BY length DESC""" + (f" LIMIT {limit}" if limit is not None else ""))
+    return list(map(dict, cur.fetchall()))
 
 
 @dp.message(F.migrate_to_chat_id)
@@ -202,9 +202,9 @@ async def top(message: types.Message):
     if message.chat.id == message.from_user.id:
         return await message.reply("Данная команда доступна только в группах с ботом.")
 
-    users = get_top_users(message.chat.id)
+    users = get_top_users(message.chat.id, limit=15)
 
-    text = "Топ пипис:\n\n"
+    text = "Топ 15 пипис:\n\n"
     count = 0
     for count, user in enumerate(users, start=1):
         user_name = None
