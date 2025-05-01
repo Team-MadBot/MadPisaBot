@@ -18,7 +18,7 @@ logging.basicConfig(level=logging.INFO)
 
 bot = Bot(token=bot_token)
 dp = Dispatcher()
-db = sqlite3.connect("database.db", autocommit=True)
+db = sqlite3.connect("database.db", autocommit=True, check_same_thread=False)
 db.row_factory = sqlite3.Row
 cur = db.cursor()
 ONE_WEEK_IN_SECONDS = 3600 * 24 * 7
@@ -39,11 +39,22 @@ cur.execute(
     )
     """
 )
+cur.execute(
+    """CREATE TABLE IF NOT EXISTS banned_user (
+        user_id INTEGER UNIQUE NOT NULL,
+        is_banned INTEGER NOT NULL DEFAULT(1)
+    )"""
+)
 
 
 def get_top_users(chat_id: int, limit: Optional[int] = None):
     cur.execute(f"""SELECT * FROM user WHERE chat_id = {chat_id} ORDER BY length DESC""" + (f" LIMIT {limit}" if limit is not None else ""))
     return list(map(dict, cur.fetchall()))
+
+
+def is_banned_user(user_id: int):
+    db_user = cur.execute("SELECT * FROM banned_user WHERE user_id = ?", (user_id, )).fetchone()
+    return db_user is not None and db_user['is_banned']
 
 
 @dp.message(F.migrate_to_chat_id)
@@ -374,6 +385,57 @@ async def send_alert(message: types.Message):
         await asyncio.sleep(2)
 
     await msg.edit_text("Рассылка завершена!")
+
+
+@dp.message(Command("feedback"), F.from_user.id == F.chat.id, ~F.from_user.id.func(is_banned_user))
+async def feedback_cmd(message: types.Message):
+    report_msg = message.md_text.removeprefix("/feedback")
+    if report_msg == "":
+        return await message.reply(
+            "Напишите внутри команды сообщение, которое хотите отправить владельцу бота.\n"
+            "Пример: /feedback Хочу, чтобы бот умел женить людей.\n"
+            "ВНИМАНИЕ: Бот может переслать только один файл. Если Вам нужно отправить несколько файлов, отправляйте их по одному!"
+        )
+
+    msg = await message.forward(owners_id[0])
+    await msg.reply(f"ID отправителя: {message.from_user.id}")
+    await message.reply("Передал сообщение владельцу!")
+
+
+@dp.message(Command("banfeedback"), F.from_user.id.in_(owners_id))
+async def banfeedbackcmd(message: types.Message):
+    args = message.text.split()[1:]
+    if len(args) == 0:
+        return await message.reply("Некого банить")
+    
+    user_id = args[0]
+    cur.execute("INSERT INTO banned_user (user_id) VALUES (?)", (user_id,))
+    await message.reply("Уничтожено!")
+
+
+@dp.message(Command("unbanfeedback"), F.from_user.id.in_(owners_id))
+async def unbanfeedbackcmd(message: types.Message):
+    args = message.text.split()[1:]
+    if len(args) == 0:
+        return await message.reply("Некого разбанить")
+    
+    user_id = args[0]
+    cur.execute("DELETE FROM banned_user WHERE user_id = ?", (user_id,))
+    await message.reply("Реабилитирован!")
+
+
+@dp.message(Command("sendto"), F.from_user.id.in_(owners_id))
+async def sendtocmd(message: types.Message):
+    args = message.md_text.split()[1:]
+    if len(args) <= 1:
+        return await message.reply("А чё отправлять-то и кому?")
+    
+    msg_text = message.md_text.removeprefix(f"/sendto {args[0]} ")
+
+    await message.bot.send_message(
+        args[0], "*Сообщение от владельца бота:*\n\n" + msg_text, parse_mode="MarkdownV2"
+    )
+    await message.reply("Ответил")
 
 
 if __name__ == "__main__":
