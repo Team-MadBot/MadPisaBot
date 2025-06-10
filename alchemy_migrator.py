@@ -2,7 +2,7 @@ import asyncio
 import datetime
 import sqlite3
 
-from db import ChatRepository, ChatUserRepository, UserCacheRepository
+from db import ChatRepository, ChatUserRepository, UserRepository
 
 async def main():
     db = sqlite3.connect("database_old.db", autocommit=True)
@@ -42,7 +42,7 @@ async def main():
     cur.execute("SELECT * FROM user_cache")
     user_caches = cur.fetchall()
     for user_cache in user_caches:
-        await UserCacheRepository.create_user_cache(
+        await UserRepository.create_user(
             user_id=user_cache["user_id"],
             user_name=user_cache["user_name"]
         )

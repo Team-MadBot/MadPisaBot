@@ -10,7 +10,7 @@ from aiogram.filters import Command
 from aiogram.types import ContentType, LabeledPrice, PreCheckoutQuery
 from aiogram.filters import IS_MEMBER, IS_NOT_MEMBER, ChatMemberUpdatedFilter
 
-from db import ChatRepository, UserCacheRepository, ChatUserRepository, ThingForm
+from db import ChatRepository, UserRepository, ChatUserRepository, ThingForm
 from config import bot_token, owners_id
 
 logging.basicConfig(level=logging.INFO)
@@ -18,11 +18,15 @@ logging.basicConfig(level=logging.INFO)
 bot = Bot(token=bot_token)
 dp = Dispatcher()
 
-
 @dp.my_chat_member(ChatMemberUpdatedFilter(IS_NOT_MEMBER >> IS_MEMBER))
 async def handle_group_join(event: types.ChatMemberUpdated):
     with contextlib.suppress(Exception):  # FIXME
         await ChatRepository.create_chat(event.chat.id)
+
+
+async def is_banned_user(user_id: int):
+    db_user = await UserRepository.get_user_by_id(user_id=user_id)
+    return db_user is not None and db_user.is_feedback_banned
 
 
 @dp.message(F.migrate_to_chat_id)
@@ -33,7 +37,7 @@ async def migrate_to_chat_id_handler(message: types.Message):
 
     await ChatRepository.update_chat_settings(current_chat_id=old_id, chat_id=new_id)
     await ChatUserRepository.migrate_user_id(old_user_id=old_id, new_user_id=new_id)
-    await UserCacheRepository.migrate_user_id(old_user_id=old_id, new_user_id=new_id)
+    await UserRepository.migrate_user_id(old_user_id=old_id, new_user_id=new_id)
 
 
 @dp.message(Command("luck"))
@@ -54,7 +58,7 @@ async def try_luck(message: types.Message):
         thing_name="писюн",
         thing_metric="см"
     )
-    await UserCacheRepository.get_and_update_user_cache(
+    await UserRepository.get_and_update_user(
         user_id=tg_user.id,
         user_name=tg_user.full_name
     )
@@ -165,7 +169,7 @@ async def info(message: types.Message):
     )
 
     await message.reply(text)
-    await UserCacheRepository.get_and_update_user_cache(user_id=tg_user.id, user_name=tg_user.full_name)
+    await UserRepository.get_and_update_user(user_id=tg_user.id, user_name=tg_user.full_name)
 
 
 @dp.message(Command("top"))
@@ -185,7 +189,7 @@ async def top(message: types.Message):
     text = "Топ этого чата:\n\n"
     for count, user in enumerate(users, start=1):
         user_name = None
-        user_cache = await UserCacheRepository.get_user_cache_by_id(user_id=user.user_id)
+        user_cache = await UserRepository.get_user_by_id(user_id=user.user_id)
         if user_cache is not None:
             user_name = user_cache.user_name
         else:
@@ -195,7 +199,7 @@ async def top(message: types.Message):
                 traceback.print_exc()
         text += f"{count}. {user_name or 'Неизвестный'}: {user.thing_value:,} {chat_info.thing_metric}.\n"
         if user_cache is None and user_name is not None:
-            await UserCacheRepository.create_user_cache(user_id=user.user_id, user_name=user_name)
+            await UserRepository.create_user(user_id=user.user_id, user_name=user_name)
 
     await message.reply(text)
 
@@ -333,6 +337,61 @@ async def send_alert(message: types.Message):
         await asyncio.sleep(0.034)
 
     await msg.edit_text("Рассылка завершена!")
+
+
+@dp.message(Command("feedback"), F.from_user.id == F.chat.id, ~F.from_user.id.func(is_banned_user))
+async def feedback_cmd(message: types.Message):
+    assert message.from_user is not None
+    report_msg = message.md_text.removeprefix("/feedback")
+    if report_msg == "":
+        return await message.reply(
+            "Напишите внутри команды сообщение, которое хотите отправить владельцу бота.\n"
+            "Пример: /feedback Хочу, чтобы бот умел женить людей.\n"
+            "ВНИМАНИЕ: Бот может переслать только один файл. Если Вам нужно отправить несколько файлов, отправляйте их по одному!"
+        )
+
+    msg = await message.forward(owners_id[0])
+    await msg.reply(f"ID отправителя: {message.from_user.id}")
+    await message.reply("Передал сообщение владельцу!")
+
+
+@dp.message(Command("banfeedback"), F.from_user.id.in_(owners_id))
+async def banfeedbackcmd(message: types.Message):
+    assert message.text is not None
+    args = message.text.split()[1:]
+    if len(args) == 0:
+        return await message.reply("Некого банить")
+    
+    user_id = args[0]
+    await UserRepository.get_and_update_user(user_id=int(user_id), is_feedback_banned=True)
+    await message.reply("Уничтожено!")
+
+
+@dp.message(Command("unbanfeedback"), F.from_user.id.in_(owners_id))
+async def unbanfeedbackcmd(message: types.Message):
+    assert message.text is not None
+    args = message.text.split()[1:]
+    if len(args) == 0:
+        return await message.reply("Некого разбанить")
+    
+    user_id = args[0]
+    await UserRepository.update_user(user_id=int(user_id), is_feedback_banned=False)
+    await message.reply("Реабилитирован!")
+
+
+@dp.message(Command("sendto"), F.from_user.id.in_(owners_id))
+async def sendtocmd(message: types.Message):
+    assert message.bot is not None
+    args = message.md_text.split()[1:]
+    if len(args) <= 1:
+        return await message.reply("А чё отправлять-то и кому?")
+    
+    msg_text = message.md_text.removeprefix(f"/sendto {args[0]} ")
+
+    await message.bot.send_message(
+        args[0], "*Сообщение от владельца бота:*\n\n" + msg_text, parse_mode="MarkdownV2"
+    )
+    await message.reply("Ответил")
 
 
 if __name__ == "__main__":

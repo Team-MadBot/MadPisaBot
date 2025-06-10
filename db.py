@@ -28,13 +28,6 @@ class ThingForm(enum.Enum):
     FEMININE = "feminine"
     MIDDLE = "middle"
 
-class UserNameCache(DbBase):
-    __tablename__ = "usernamecaches"
-
-    id: Mapped[int] = mapped_column(primary_key=True)
-    user_id: Mapped[int] = mapped_column(index=True, unique=True)
-    user_name: Mapped[str]
-
 class ChatUser(DbBase):
     __tablename__ = "users"
 
@@ -55,6 +48,13 @@ class Chat(DbBase):
     random_min_value: Mapped[int] = mapped_column(default=-5)  # FIXME: random_min_value MUST be less then random_max_value
     random_max_value: Mapped[int] = mapped_column(default=10)
     users: Mapped[List[ChatUser]] = relationship(back_populates="chat")
+
+class User(DbBase):
+    __tablename__ = "botusers"
+
+    user_id: Mapped[int] = mapped_column(primary_key=True)
+    is_feedback_banned: Mapped[bool] = mapped_column(default=False)
+    user_name: Mapped[str] = mapped_column(default="Неизвестный")
 
 
 engine = create_async_engine("sqlite+aiosqlite:///database.db")
@@ -281,34 +281,36 @@ class ChatUserRepository:
         return user
 
 
-class UserCacheRepository:
+class UserRepository:
     @staticmethod
-    async def create_user_cache(
+    async def create_user(
         user_id: int,
-        user_name: str
-    ) -> UserNameCache:
+        user_name: Optional[str] = None,
+        is_feedback_banned: Optional[bool] = None
+    ) -> User:
         async with async_session() as session:
-            user_cache = UserNameCache(
+            user = User(
                 user_id=user_id,
-                user_name=user_name
+                user_name=user_name,
+                is_feedback_banned=is_feedback_banned
             )
-            session.add(user_cache)
+            session.add(user)
             await session.commit()
-            await session.refresh(user_cache)
-            return user_cache
+            await session.refresh(user)
+            return user
     
     @staticmethod
-    async def get_user_cache_by_id(user_id: int) -> Optional[UserNameCache]:
+    async def get_user_by_id(user_id: int) -> Optional[User]:
         async with async_session() as session:
-            stmt = select(UserNameCache).where(UserNameCache.user_id == user_id)
+            stmt = select(User).where(User.user_id == user_id)
             result = await session.execute(stmt)
             return result.scalar_one_or_none()
 
     
     @staticmethod
-    async def update_user_cache(user_id: int, **kwargs) -> bool:
+    async def update_user(user_id: int, **kwargs) -> bool:
         async with async_session() as session:
-            stmt = update(UserNameCache).where(UserNameCache.user_id == user_id).values(**kwargs)
+            stmt = update(User).where(User.user_id == user_id).values(**kwargs)
             result = await session.execute(stmt)
             await session.commit()
             return result.rowcount > 0
@@ -316,34 +318,31 @@ class UserCacheRepository:
     @staticmethod
     async def migrate_user_id(old_user_id: int, new_user_id: int) -> bool:
         async with async_session() as session:
-            stmt = update(UserNameCache).where(UserNameCache.user_id == old_user_id).values(user_id=new_user_id)
+            stmt = update(User).where(User.user_id == old_user_id).values(user_id=new_user_id)
             result = await session.execute(stmt)
             await session.commit()
             return result.rowcount > 0
     
     @staticmethod
-    async def delete_user_cache(user_id: int) -> bool:
+    async def delete_user(user_id: int) -> bool:
         async with async_session() as session:
-            stmt = delete(UserNameCache).where(UserNameCache.user_id == user_id)
+            stmt = delete(User).where(User.user_id == user_id)
             result = await session.execute(stmt)
             await session.commit()
             return result.rowcount > 0
     
     @staticmethod
-    async def get_all_user_caches() -> List[UserNameCache]:
+    async def get_all_users() -> List[User]:
         async with async_session() as session:
-            stmt = select(UserNameCache)
+            stmt = select(User)
             return list((await session.execute(stmt)).scalars().all())
     
     @staticmethod
-    async def get_and_update_user_cache(user_id: int, user_name: str) -> UserNameCache:
-        async with async_session() as session:
-            stmt = select(UserNameCache).where(UserNameCache.user_id == user_id)
-            user_cache = (await session.execute(stmt)).scalar_one_or_none()
-            if user_cache is None:
-                user_cache = await UserCacheRepository.create_user_cache(user_id=user_id, user_name=user_name)
-            else:
-                user_cache.user_name = user_name
-                await session.commit()
+    async def get_and_update_user(user_id: int, **kwargs) -> User:
+        user = await UserRepository.get_user_by_id(user_id=user_id)
+        if user is None:
+            user = await UserRepository.create_user(user_id=user_id, **kwargs)
+        else:
+            await UserRepository.update_user(user_id=user_id, **kwargs)
 
-            return user_cache
+        return user
