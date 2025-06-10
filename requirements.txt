@@ -1,2 +1,5 @@
-aiogram
-python_dotenv
+aiogram==3.18.0
+python_dotenv==1.0.1
+sqlalchemy[asyncio]==2.0.41
+aiosqlite==0.21.0
+alembic==1.16.1
