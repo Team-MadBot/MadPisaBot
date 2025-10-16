@@ -76,11 +76,14 @@ async def migrate_to_chat_id_handler(message: types.Message):
 
 
 @dp.message(Command("dick"))
+@dp.channel_post(Command("dick"))
 async def dick(message: types.Message):
-    if message.chat.id == message.from_user.id:
+    if message.chat.type == "private":
         return await message.reply("Данная команда доступна только в группах с ботом.")
 
     tg_user = message.sender_chat or message.from_user
+    assert tg_user is not None
+
     cur.execute(
         f"""SELECT * FROM user WHERE user_id = {tg_user.id} AND chat_id = {message.chat.id}"""
     )
@@ -146,8 +149,9 @@ async def dick(message: types.Message):
 
 
 @dp.message(Command("info"))
+@dp.channel_post(Command("info"))
 async def info(message: types.Message):
-    if message.chat.id == message.from_user.id:
+    if message.chat.type == "private":
         return await message.reply("Данная команда доступна только в группах с ботом.")
 
     user = (
@@ -209,8 +213,9 @@ async def info(message: types.Message):
 
 
 @dp.message(Command("top", "top_dick"))
+@dp.channel_post(Command("top", "top_dick"))
 async def top(message: types.Message):
-    if message.chat.id == message.from_user.id:
+    if message.chat.type == "private":
         return await message.reply("Данная команда доступна только в группах с ботом.")
 
     users = get_top_users(message.chat.id, limit=15)
@@ -256,6 +261,7 @@ async def giveuserlink(message: types.Message):
 
 
 @dp.message(Command("editsize"), F.from_user.id.in_(owners_id))
+@dp.channel_post(Command("editsize"), F.from_user.id.in_(owners_id))
 async def editsize(message: types.Message):
     args = message.text.split(" ")
     if len(args) < 2:
