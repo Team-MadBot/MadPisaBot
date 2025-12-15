@@ -311,7 +311,7 @@ async def editsize(message: types.Message):
     )
 
 
-@dp.message(Command("buy"))
+@dp.message(Command("buy", "pay"))
 async def buy_kd_reset(message: types.Message):
     if message.chat.id != message.from_user.id:
         return await message.reply("Покупка возможна только в личных сообщениях бота.")
