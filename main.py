@@ -1,11 +1,11 @@
 import asyncio
-import datetime
 import logging
 import random
 import sqlite3
 import time
 import traceback
 
+from contextlib import suppress
 from typing import Optional
 
 from aiogram import Bot, Dispatcher, F, exceptions, types
@@ -126,14 +126,18 @@ async def dick(message: types.Message):
     if amount < 0:
         text = f"{tg_user.full_name}, твой писюн сократился на {amount * -1} см."
 
+    next_dick = message.date.timestamp() + 3600 * 12
+    print(next_dick)
+    print(message.date)
+
     if user.get("fake", False):
         cur.execute(
             f"""INSERT INTO user (chat_id, user_id, length, next_dick) VALUES
-            ({message.chat.id}, {tg_user.id}, {amount}, {int(datetime.datetime.now().timestamp() + 3600 * 12)})"""
+            ({message.chat.id}, {tg_user.id}, {amount}, {next_dick})"""
         )
     else:
         cur.execute(
-            f"""UPDATE user SET length = {user['length'] + amount}, next_dick = {int(datetime.datetime.now().timestamp() + 3600 * 12)} 
+            f"""UPDATE user SET length = {user['length'] + amount}, next_dick = {next_dick} 
             WHERE user_id = {tg_user.id} AND chat_id = {message.chat.id}"""
         )
 
@@ -144,7 +148,7 @@ async def dick(message: types.Message):
 
     await message.reply(
         f"{text}\nТеперь размер составляет {(user['length'] + amount):,} см.\n"
-        f"Теперь ты занимаешь {count} место в топе.\nСледующая попытка через 12 часов."
+        f"Теперь ты занимаешь {count} место в топе.\nСледующая попытка через 12 часов (с момента написания команды)."
     )
 
 
@@ -437,9 +441,14 @@ async def sendtocmd(message: types.Message):
         return await message.reply("А чё отправлять-то и кому?")
     
     msg_text = message.md_text.removeprefix(f"/sendto {args[0]} ")
+    sender_id = args[0].replace("\\", "")
+    with suppress(ValueError):
+        sender_id = int(sender_id)
+    
+    print(sender_id)
 
     await message.bot.send_message(
-        args[0], "*Сообщение от владельца бота:*\n\n" + msg_text, parse_mode="MarkdownV2"
+        sender_id, "*Сообщение от владельца бота:*\n\n" + msg_text, parse_mode="MarkdownV2"
     )
     await message.reply("Ответил")
 
