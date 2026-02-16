@@ -1,6 +1,7 @@
 import asyncio
 import logging
 import random
+import json
 import sqlite3
 import time
 import traceback
@@ -262,6 +263,41 @@ async def giveuserlink(message: types.Message):
         return await message.reply("Введи корректный ID!")
 
     await message.reply(f"[Тык](tg://user?id={args[1]})", parse_mode="Markdown")
+
+
+@dp.message(Command("export"), F.chat.type != "private")
+async def exportstats(message: types.Message):
+    assert message.bot is not None
+
+    if message.from_user is None or not isinstance((await message.chat.get_member(message.from_user.id)), types.ChatMemberOwner):
+        await message.reply(
+            "Данную команду может использовать только владелец группы. Чтобы бот корректно воспринял Вас, "
+            "выдайте ему админку и уберите с себя анонимку, если она есть у Вас."
+        )
+        return
+    
+    cur.execute("SELECT * FROM user WHERE chat_id = ?", (message.chat.id,))
+    result = [dict(i) for i in cur.fetchall()]
+    
+    try:
+        await message.bot.send_document(
+            message.from_user.id, 
+            types.BufferedInputFile(json.dumps(result, ensure_ascii=False, indent=4).encode(), filename="stats.json"),
+            caption=(
+                "Вот сохранение для Вашей группы.\n\nПояснения к каждому ключу:\n"
+                "- chat_id - ID вашего чата;\n"
+                "- user_id - ID пользователя. Это может быть ID как обычного аккаунта, так и группы или канала, если пользователь использовал анонимку;\n"
+                "- length - длина в сантиметрах;\n"
+                "- next_dick - время снятия задержки на команду в UNIX-формате (т.е. количество секунд, прошедших с 1 января 1970 г. 00:00:00 UTC+0)."
+            )
+        )
+    except Exception:
+        await message.reply(
+            "Бот пытался отправить Вам экспорт в ЛС, но Вы ни разу не общались с ботом в личке либо кинули его в ЧС. "
+            "Пропишите /start в ЛС и попробуйте ещё раз."
+        )
+    else:
+        await message.reply("Бот отправил экспорт Вам в личные сообщения.")
 
 
 @dp.message(Command("editsize"), F.from_user.id.in_(owners_id))
