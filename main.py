@@ -121,11 +121,11 @@ async def dick(message: types.Message):
     
     amount = int(random.randint(-5, 10))
 
-    text = f"{tg_user.full_name}, твой писюн сократился на {amount * -1} см."
+    text = f"{tg_user.full_name}, твой писюн сократился на {amount} см."
     if amount == 0:
         text = f"{tg_user.full_name}, твой писюн не изменился."
     if amount < 0:
-        text = f"{tg_user.full_name}, твой писюн увеличился на {amount} см."
+        text = f"{tg_user.full_name}, твой писюн увеличился на {amount * -1} см."
 
     next_dick = message.date.timestamp() + 3600 * 12
     print(next_dick)
