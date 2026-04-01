@@ -148,7 +148,7 @@ async def dick(message: types.Message):
             break
 
     await message.reply(
-        f"{text}\nТеперь размер составляет {(-user['length'] + amount):,} см.\n"
+        f"{text}\nТеперь размер составляет {(-(user['length'] + amount)):,} см.\n"
         f"Теперь ты занимаешь {count} место в топе.\nСледующая попытка через 12 часов (с момента написания команды)."
     )
 
