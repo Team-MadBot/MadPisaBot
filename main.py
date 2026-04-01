@@ -121,11 +121,11 @@ async def dick(message: types.Message):
     
     amount = int(random.randint(-5, 10))
 
-    text = f"{tg_user.full_name}, твой писюн увеличился на {amount} см."
+    text = f"{tg_user.full_name}, твой писюн сократился на {amount * -1} см."
     if amount == 0:
         text = f"{tg_user.full_name}, твой писюн не изменился."
     if amount < 0:
-        text = f"{tg_user.full_name}, твой писюн сократился на {amount * -1} см."
+        text = f"{tg_user.full_name}, твой писюн увеличился на {amount} см."
 
     next_dick = message.date.timestamp() + 3600 * 12
     print(next_dick)
@@ -148,7 +148,7 @@ async def dick(message: types.Message):
             break
 
     await message.reply(
-        f"{text}\nТеперь размер составляет {(user['length'] + amount):,} см.\n"
+        f"{text}\nТеперь размер составляет {(-user['length'] + amount):,} см.\n"
         f"Теперь ты занимаешь {count} место в топе.\nСледующая попытка через 12 часов (с момента написания команды)."
     )
 
@@ -191,7 +191,7 @@ async def info(message: types.Message):
 
     thing_name = (
         "твой писюн эквивалентен"
-        if db_user["length"] >= 0
+        if db_user["length"] < 0
         else "в твою пизду поместится"
     )
     text = (
@@ -240,7 +240,7 @@ async def top(message: types.Message):
                 user_name = (await bot.get_chat(user["user_id"])).full_name
             except exceptions.TelegramBadRequest:
                 traceback.print_exc()
-        text += f"{count}. {user_name or 'Неизвестный'}: {user['length']:,} см.\n"
+        text += f"{count}. {user_name or 'Неизвестный'}: {-user['length']:,} см.\n"
         if user_cache is None and user_name is not None:
             cur.execute(
                 "INSERT INTO user_cache (user_id, user_name) VALUES (?, ?)", 
