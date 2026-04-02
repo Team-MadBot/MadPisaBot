@@ -412,17 +412,24 @@ async def handle_pre_checkout(query: PreCheckoutQuery):
     F.successful_payment.invoice_payload.startswith("KD_RESET_"),
 )
 async def on_success(message: types.Message):
+    target_id = int(message.successful_payment.invoice_payload.removeprefix("KD_RESET_"))
+    
     cur.execute(
         "UPDATE user SET next_dick = 0 WHERE user_id = ?",
-        (int(message.successful_payment.invoice_payload.removeprefix("KD_RESET_")),),
+        (target_id,),
     )
 
-    await message.reply("Оплата получена! КД снято.")
+    await message.reply("Оплата получена! КД пользователю снято.")
     await bot.send_message(
         owners_id[0],
         f"Пользователь с ID {message.from_user.id} ({message.from_user.full_name}) "
         f"оплатил снятие КД на /dick для пользователя/канала с ID {message.successful_payment.invoice_payload.removeprefix("KD_RESET_")}",
     )
+    with suppress(Exception):
+        await bot.send_message(
+            target_id, 
+            f"Пользователь {message.from_user.full_name} оплатил Вам сброс КД. Теперь Вы можете вновь прописать /dick во всех чатах с ботом!"
+        )
 
 
 @dp.message(Command("refund"), F.from_user.id.in_(owners_id))
