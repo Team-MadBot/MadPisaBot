@@ -365,7 +365,7 @@ async def buy_kd_reset(message: types.Message):
     
     assert target is not None
 
-    cur.execute("SELECT * FROM user WHERE user_id = ?")
+    cur.execute("SELECT * FROM user WHERE user_id = ?", (target.id,))
     if cur.fetchone() is None:
         return await message.reply(
             f"Пользователь {target.full_name} ни разу не взаимодействовал с ботом, соответственно, смысла тратить звёзды на него нет.\n\n"
