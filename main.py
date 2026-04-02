@@ -349,18 +349,50 @@ async def editsize(message: types.Message):
 
 @dp.message(Command("buy", "pay"))
 async def buy_kd_reset(message: types.Message):
-    if message.chat.id != message.from_user.id:
-        return await message.reply("Покупка возможна только в личных сообщениях бота.")
+    assert message.bot is not None
 
-    await message.reply_invoice(
-        title="Сброс кд",
-        description="Сброс срока /dick. Если КД прошло - звёзды улетят впустую!!!!",
-        payload=f"KD_RESET_{(message.sender_chat or message.from_user).id}",
-        provider_token=None,
-        is_flexible=False,
-        currency="XTR",
-        prices=[LabeledPrice(label="Сброс КД", amount=2)],
-    )
+    if message.sender_chat is not None:
+        return await message.reply(
+            "Данную команду необходимо использовать от имени обычного пользователя, чтобы бот мог выставить счёт в личных сообщениях!\n\nПодсказка: "
+            "для сброса КД от лица группы или канала, пропишите данную команду от имени обычного пользователя в ответ на сообщение необходимой группы или канала."
+        )
+
+    assert message.from_user is not None
+
+    target = message.from_user
+    if message.reply_to_message is not None:
+        target = message.reply_to_message.sender_chat or message.reply_to_message.from_user
+    
+    assert target is not None
+
+    cur.execute("SELECT * FROM user WHERE user_id = ?")
+    if cur.fetchone() is None:
+        return await message.reply(
+            f"Пользователь {target.full_name} ни разу не взаимодействовал с ботом, соответственно, смысла тратить звёзды на него нет.\n\n"
+            + (
+                "Если Вы хотели приобрести звёзды для себя, уберите ответ на сообщение, прежде чем прописать команду" if message.reply_to_message else 
+                "Пропишите для начала /dick в любом чате, где есть бот, чтобы этот смысл появился."
+            )
+        )
+
+    try:
+        await message.bot.send_invoice(
+            chat_id=message.from_user.id,
+            title=f"Сброс кд для пользователя {target.full_name}",
+            description="Сброс срока /dick. Если КД прошло - звёзды улетят впустую!!!!",
+            payload=f"KD_RESET_{target.id}",
+            provider_token=None,
+            is_flexible=False,
+            currency="XTR",
+            prices=[LabeledPrice(label="Сброс КД", amount=2)],
+        )
+    except Exception:
+        await message.reply(
+            "Не удалось отправить счёт за сброс КД в личные сообщения! Убедитесь, что Вы открыли личные сообщения с ботом!"
+        )
+    else:
+        if message.chat.id != message.from_user.id:
+            await message.reply("Отправил Вам счёт за сброс КД в личные сообщения.")
 
 
 @dp.pre_checkout_query()
