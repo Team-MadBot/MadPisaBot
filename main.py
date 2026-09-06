@@ -6,6 +6,7 @@ import sqlite3
 import time
 import traceback
 
+from datetime import datetime
 from contextlib import suppress
 from typing import Optional
 
@@ -116,7 +117,8 @@ async def dick(message: types.Message):
     if user["next_dick"] > time.time():
         remaining = user["next_dick"] - time.time()
         return await message.reply(
-            f"Ты уже играл!\nОжидай ещё {round(remaining // 3600)} часов, {round(remaining % 3600 // 60)} минут и {round(remaining % 3600 % 60)} секунд."
+            f"Ты уже играл!\nСледующая попытка в {time.strftime("%H:%M:%S", time.gmtime(user["next_dick"] + 3600 * 3))} МСК " # shitcode(((
+            f"(через {round(remaining // 3600):02d}:{round(remaining % 3600 // 60):02d}:{round(remaining % 3600 % 60):02d})."
         )
     
     amount = int(random.randint(-5, 10))
@@ -149,7 +151,7 @@ async def dick(message: types.Message):
 
     await message.reply(
         f"{text}\nТеперь размер составляет {(user['length'] + amount):,} см.\n"
-        f"Теперь ты занимаешь {count} место в топе.\nСледующая попытка через 12 часов (с момента написания команды)."
+        f"Теперь ты занимаешь {count} место в топе.\nСледующая попытка через 12 часов (в {time.strftime("%H:%M:%S", time.gmtime(next_dick + 3600 * 3))} МСК)."
     )
 
 
@@ -180,7 +182,10 @@ async def info(message: types.Message):
         return await message.reply(text)
 
     remaining = (db_user["next_dick"] or 0) - round(time.time())
-    remaining_text = f"через {round(remaining // 3600)} часов, {round(remaining % 3600 // 60)} минут и {round(remaining % 3600 % 60)} секунд."
+    remaining_text = (
+        f"в {time.strftime("%H:%M:%S", time.gmtime(db_user["next_dick"] + 3600 * 3))} МСК "
+        f"(через {round(remaining // 3600):02d}:{round(remaining % 3600 // 60):02d}:{round(remaining % 3600 % 60):02d})"
+    )
     if remaining <= 0:
         remaining_text = "сейчас!"
 
