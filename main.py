@@ -116,9 +116,12 @@ async def dick(message: types.Message):
         )
     if user["next_dick"] > time.time():
         remaining = user["next_dick"] - time.time()
+        remaining_hours = f"{round(remaining // 3600)} ч, " if round(remaining // 3600) > 0 else ""
+        remaining_minutes = f"{round(remaining % 3600 // 60)} мин, " if round(remaining % 3600 // 60) > 0 else ""
+        remaining_seconds = f"{round(remaining % 3600 % 60)} сек." if round(remaining % 3600 % 60) > 0 else ""
         return await message.reply(
-            f"Ты уже играл!\nСледующая попытка в {time.strftime("%H:%M:%S", time.gmtime(user["next_dick"] + 3600 * 3))} МСК " # shitcode(((
-            f"(через {round(remaining // 3600):02d}:{round(remaining % 3600 // 60):02d}:{round(remaining % 3600 % 60):02d})."
+            f"Ты уже играл!\nСледующая попытка через {remaining_hours}{remaining_minutes}{remaining_seconds} " # shitcode(((
+            f"(в {time.strftime("%H:%M:%S", time.gmtime(user["next_dick"] + 3600 * 3))} МСК)."
         )
     
     amount = int(random.randint(-5, 10))
@@ -182,9 +185,12 @@ async def info(message: types.Message):
         return await message.reply(text)
 
     remaining = (db_user["next_dick"] or 0) - round(time.time())
+    remaining_hours = f"{round(remaining // 3600)} ч." if round(remaining // 3600) > 0 else ""
+    remaining_minutes = f" {round(remaining % 3600 // 60)} мин." if round(remaining % 3600 // 60) > 0 else ""
+    remaining_seconds = f" {round(remaining % 3600 % 60)} сек." if round(remaining % 3600 % 60) > 0 else ""
     remaining_text = (
-        f"в {time.strftime("%H:%M:%S", time.gmtime(db_user["next_dick"] + 3600 * 3))} МСК "
-        f"(через {round(remaining // 3600):02d}:{round(remaining % 3600 // 60):02d}:{round(remaining % 3600 % 60):02d})"
+        f"через {remaining_hours}{remaining_minutes}{remaining_seconds} "
+        f"(в {time.strftime("%H:%M:%S", time.gmtime(db_user["next_dick"] + 3600 * 3))} МСК)"
     )
     if remaining <= 0:
         remaining_text = "сейчас!"
