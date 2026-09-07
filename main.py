@@ -116,8 +116,8 @@ async def dick(message: types.Message):
         )
     if user["next_dick"] > time.time():
         remaining = user["next_dick"] - time.time()
-        remaining_hours = f"{round(remaining // 3600)} ч, " if round(remaining // 3600) > 0 else ""
-        remaining_minutes = f"{round(remaining % 3600 // 60)} мин, " if round(remaining % 3600 // 60) > 0 else ""
+        remaining_hours = f"{round(remaining // 3600)} ч. " if round(remaining // 3600) > 0 else ""
+        remaining_minutes = f"{round(remaining % 3600 // 60)} мин. " if round(remaining % 3600 // 60) > 0 else ""
         remaining_seconds = f"{round(remaining % 3600 % 60)} сек." if round(remaining % 3600 % 60) > 0 else ""
         return await message.reply(
             f"Ты уже играл!\nСледующая попытка через {remaining_hours}{remaining_minutes}{remaining_seconds} " # shitcode(((
