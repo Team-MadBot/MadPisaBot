@@ -115,10 +115,10 @@ async def dick(message: types.Message):
             (tg_user.full_name, tg_user.id)
         )
     if user["next_dick"] > time.time():
-        remaining = user["next_dick"] - time.time()
-        remaining_hours = f"{round(remaining // 3600)} ч. " if round(remaining // 3600) > 0 else ""
-        remaining_minutes = f"{round(remaining % 3600 // 60)} мин. " if round(remaining % 3600 // 60) > 0 else ""
-        remaining_seconds = f"{round(remaining % 3600 % 60)} сек." if round(remaining % 3600 % 60) > 0 else ""
+        remaining = round(user["next_dick"] - time.time())
+        remaining_hours = f"{remaining // 3600} ч. " if remaining // 3600 > 0 else ""
+        remaining_minutes = f"{remaining % 3600 // 60} мин. " if remaining % 3600 // 60 > 0 else ""
+        remaining_seconds = f"{remaining % 3600 % 60} сек." if remaining % 3600 % 60 > 0 else ""
         return await message.reply(
             f"Ты уже играл!\nСледующая попытка через {remaining_hours}{remaining_minutes}{remaining_seconds} " # shitcode(((
             f"(в {time.strftime("%H:%M:%S", time.gmtime(user["next_dick"] + 3600 * 3))} МСК)."
@@ -184,10 +184,10 @@ async def info(message: types.Message):
         )
         return await message.reply(text)
 
-    remaining = (db_user["next_dick"] or 0) - round(time.time())
-    remaining_hours = f"{round(remaining // 3600)} ч." if round(remaining // 3600) > 0 else ""
-    remaining_minutes = f" {round(remaining % 3600 // 60)} мин." if round(remaining % 3600 // 60) > 0 else ""
-    remaining_seconds = f" {round(remaining % 3600 % 60)} сек." if round(remaining % 3600 % 60) > 0 else ""
+    remaining = round((db_user["next_dick"] or 0) - time.time())
+    remaining_hours = f"{remaining // 3600} ч. " if remaining // 3600 > 0 else ""
+    remaining_minutes = f"{remaining % 3600 // 60} мин. " if remaining % 3600 // 60 > 0 else ""
+    remaining_seconds = f"{remaining % 3600 % 60} сек." if remaining % 3600 % 60 > 0 else ""
     remaining_text = (
         f"через {remaining_hours}{remaining_minutes}{remaining_seconds} "
         f"(в {time.strftime("%H:%M:%S", time.gmtime(db_user["next_dick"] + 3600 * 3))} МСК)"
