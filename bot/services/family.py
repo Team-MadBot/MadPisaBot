@@ -227,7 +227,7 @@ async def respond(
     request = await session.scalar(query)
     if request is None:
         raise GameError("Предложение в этом чате не найдено.")
-    if request.recipient_id != actor_id:
+    if request.recipient_id != actor_id and accept:
         raise GameError("Это предложение должен подтвердить его адресат от своего имени.")
     if request.status != "pending":
         raise GameError("Это предложение уже обработано или отменено.")
@@ -236,7 +236,7 @@ async def respond(
         return "Срок предложения истёк. Создайте новое."
     if not accept:
         request.status = "declined"
-        return f"Предложение №{request.id} отклонено."
+        return f"Предложение №{request.id} отклонено или отменено."
     try:
         if request.kind == "marry":
             result = await marry(session, request, now)

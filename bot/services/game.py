@@ -34,10 +34,12 @@ async def play(session: AsyncSession, chat_id: int, user_id: int, name: str, now
         leader = await session.scalar(select(func.max(Player.length)).where(Player.chat_id == chat_id))
         amount = random.randint(-5, 10)
         bonus = catchup_bonus(leader, player.length, amount)
+        bonus_string = f" Бонус поддержки: +{bonus} см." if bonus > 0 else ""
         player.length += amount + bonus
         player.next_dick = now + DICK_COOLDOWN
+        thing_name = "твой писюн увеличился" if player.length >= 0 else "твоя пизда увеличилась"
         lines.extend([
-            f"{name}, результат: {amount:+} см. Бонус поддержки: +{bonus} см.",
+            f"{name}, {thing_name} на {abs(amount)} см." + bonus_string,
             f"Теперь размер составляет {player.length:,} см.",
             f"Теперь ты занимаешь {await rank(session, player)} место в топе.",
         ])
@@ -62,8 +64,9 @@ async def info(session: AsyncSession, chat_id: int, user_id: int, name: str, now
     player = await session.get(Player, (chat_id, user_id))
     if player is None:
         return f"{name} ещё не играл: размер 0 см. Используй /dick для игры.\n👬 В этом чате брака нет."
+    thing_name = "твой писюн эквивалентен" if player.length >= 0 else "в твою пизду поместится"
     lines = [
-        f"{name}, размер: {player.length:,} см.",
+        f"{name}, {thing_name} {abs(player.length):,} см.",
         f"Место в топе: {await rank(session, player)}.",
         f"Следующий /dick: {availability(player.next_dick, now)}",
         "",

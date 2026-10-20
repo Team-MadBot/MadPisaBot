@@ -4,13 +4,13 @@ import logging
 
 from aiogram import F, Router, types
 from aiogram.filters import Command, CommandObject
-from sqlalchemy import select
+from sqlalchemy import select, update
 
 from bot.db import Database
-from bot.db.models import Player
+from bot.db.models import Player, Pregnancy
 from bot.handlers.common import display_name, group_identity, identity, integer
 from bot.services.common import GameError, cache_name, get_player
-from bot.services.family import process_births
+from bot.services.family import process_births, current_marriage
 from bot.time import utc_now
 from config import owners_id
 
@@ -78,6 +78,51 @@ async def edit_size(message: types.Message, command: CommandObject, database: Da
         if target and target.id == user_id:
             await cache_name(session, user_id, display_name(target))
     await message.reply(f"Размер пиписьки изменён у игрока с ID {user_id}.")
+
+
+@router.message(Command("resetcd"), F.from_user.id.in_(owners_id))
+@router.channel_post(Command("resetcd"), F.from_user.id.in_(owners_id))
+async def admin_reset_cd(message: types.Message, command: CommandObject, database: Database):
+    group_identity(message)
+    args = (command.args or "").split()
+    if not len(args) <= 1 or (len(args) == 0 and not message.reply_to_message):
+        raise GameError("Использование: /resetcd <id> или ответом на сообщение игрока.")
+    target = identity(message.reply_to_message) if message.reply_to_message else None
+    user_id = integer(args[0], "Укажи корректный ID!") if len(args) == 1 else target.id
+    async with database.transaction() as session:
+        await process_births(session, utc_now(), message.chat.id)
+        player = await get_player(session, message.chat.id, user_id)
+        family = await current_marriage(session, message.chat.id, user_id)
+        player.next_dick = 0
+        if family is not None:
+            family.next_sex = 0
+        if target and target.id == user_id:
+            await cache_name(session, user_id, display_name(target))
+    await message.reply(f"КД сброшено у игрока с ID {user_id}.")
+
+
+@router.message(Command("adminabort"), F.from_user.id.in_(owners_id))
+@router.channel_post(Command("adminabort"), F.from_user.id.in_(owners_id))
+async def admin_abort(message: types.Message, command: CommandObject, database: Database):
+    group_identity(message)
+    args = (command.args or "").split()
+    if not len(args) <= 1 or (len(args) == 0 and not message.reply_to_message):
+        raise GameError("Использование: /adminabort <id> или ответом на сообщение игрока.")
+    target = identity(message.reply_to_message) if message.reply_to_message else None
+    user_id = integer(args[0], "Укажи корректный ID!") if len(args) == 1 else target.id
+    async with database.transaction() as session:
+        await process_births(session, utc_now(), message.chat.id)
+        player = await get_player(session, message.chat.id, user_id)
+        marriage = await current_marriage(session, message.chat.id, user_id)
+        if marriage is not None:
+            await session.execute(update(Pregnancy).where(
+                    Pregnancy.chat_id == marriage.chat_id, Pregnancy.marriage_id == marriage.id,
+                    Pregnancy.status == "active",
+                ).values(status="cancelled"))
+        player.pregnancy_available_at = 0
+        if target and target.id == user_id:
+            await cache_name(session, user_id, display_name(target))
+    await message.reply(f"Выполнен аборт игроку с ID {user_id}.")
 
 
 @router.message(Command("sendalert"), F.from_user.id.in_(owners_id))
