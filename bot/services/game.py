@@ -37,9 +37,10 @@ async def play(session: AsyncSession, chat_id: int, user_id: int, name: str, now
         bonus_string = f" Бонус поддержки: +{bonus} см." if bonus > 0 else ""
         player.length += amount + bonus
         player.next_dick = now + DICK_COOLDOWN
-        thing_name = "твой писюн увеличился" if player.length >= 0 else "твоя пизда увеличилась"
+        thing_state = "увеличился" if amount >= 0 else "уменьшился"
+        change_string = f"{thing_state} на {abs(amount)} см." if amount != 0 else "не изменился."
         lines.extend([
-            f"{name}, {thing_name} на {abs(amount)} см." + bonus_string,
+            f"{name}, твой писюн {change_string}" + bonus_string,
             f"Теперь размер составляет {player.length:,} см.",
             f"Теперь ты занимаешь {await rank(session, player)} место в топе.",
         ])
