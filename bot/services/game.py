@@ -9,13 +9,17 @@ from bot.services.family import current_marriage, family_children, family_info
 from bot.time import DICK_COOLDOWN, availability
 
 
-def catchup_bonus(leader: int, length: int, roll: int) -> int:
-    if roll <= 0:
-        return 0
+def catchup_bonus(leader: int, length: int) -> int:
     # r * (max(1, (L - 42) / 420) - 1), rounded half up using integers.
-    numerator = roll * max(0, leader - 462)
-    rounded = (numerator + 210) // 420
-    return min(rounded, max(0, leader - 42 - (length + roll)))
+    intervals = 42          # 3 недели = 42 интервала по 12 часов
+    base_gain = 10          # обычный прирост за интервал
+    max_gap = 42            # допустимый итоговый отрыв
+
+    deficit = leader - base_gain * intervals  # leader - 420
+
+    bonus = deficit // intervals
+
+    return bonus if leader - (length + bonus) >= max_gap else max(0, leader - length - max_gap)
 
 
 async def rank(session: AsyncSession, player: Player) -> int:
@@ -33,7 +37,7 @@ async def play(session: AsyncSession, chat_id: int, user_id: int, name: str, now
     if player.next_dick <= now:
         leader = await session.scalar(select(func.max(Player.length)).where(Player.chat_id == chat_id))
         amount = random.randint(-5, 10)
-        bonus = catchup_bonus(leader, player.length, amount)
+        bonus = catchup_bonus(leader, player.length + amount) if amount > 0 else 0
         bonus_string = f" Бонус поддержки: +{bonus} см." if bonus > 0 else ""
         player.length += amount + bonus
         player.next_dick = now + DICK_COOLDOWN
