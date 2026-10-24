@@ -17,7 +17,7 @@ def catchup_bonus(leader: int, length: int) -> int:
 
     deficit = leader - base_gain * intervals  # leader - 420
 
-    bonus = deficit // intervals
+    bonus = random.randint(0, max(0, deficit // intervals))
 
     return bonus if leader - (length + bonus) >= max_gap else max(0, leader - length - max_gap)
 
